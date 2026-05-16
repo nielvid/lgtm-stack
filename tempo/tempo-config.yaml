@@ -26,7 +26,7 @@ metrics_generator:
       source: tempo
       cluster: lgtm-stack
   storage:
-    path: /var/tempo/generator/wal
+    path: /var/lib/tempo/generator/wal
   processors:
     - service-graphs
     - span-metrics
@@ -35,9 +35,9 @@ storage:
   trace:
     backend: local
     local:
-      path: /var/tempo/blocks
+      path: /var/lib/tempo/blocks
     wal:
-      path: /var/tempo/wal
+      path: /var/lib/tempo/wal
 
 overrides:
   defaults:

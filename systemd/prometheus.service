@@ -1,0 +1,25 @@
+[Unit]
+Description=Prometheus Monitoring System
+Documentation=https://prometheus.io/docs
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=prometheus
+Group=prometheus
+ExecStart=/usr/local/bin/prometheus \
+  --config.file=/etc/prometheus/prometheus.yml \
+  --storage.tsdb.path=/var/lib/prometheus \
+  --storage.tsdb.retention.time=15d \
+  --storage.tsdb.retention.size=8GB \
+  --web.enable-lifecycle \
+  --web.enable-admin-api \
+  --web.listen-address=0.0.0.0:9090
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=5
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

@@ -41,7 +41,7 @@ resource "google_compute_firewall" "lgtm_allow_observability" {
 }
 
 # ---------------------------------------------------------------
-# Compute Engine VM — runs the LGTM Docker Compose stack
+# Compute Engine VM — runs the full LGTM stack as native systemd services
 # ---------------------------------------------------------------
 resource "google_compute_instance" "lgtm_vm" {
   name         = var.vm_name

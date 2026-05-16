@@ -48,8 +48,11 @@ Look at the **Burn Rate History panel** in the SLO & Error Budget dashboard — 
 # Last 10 commits pushed to main
 git log --oneline -10
 
-# Any infra changes in last 6 hours?
-docker compose logs --since=6h | grep -E "restart|exit|error" | head -30
+# Last 6 hours of logs across all services
+sudo journalctl --since "6 hours ago" | grep -E "restart|error|failed" | head -30
+
+# Check for service restart events
+sudo journalctl -u prometheus -u loki -u demo-app --since "6 hours ago" | grep -iE "started|stopped|failed"
 ```
 
 ### Step 3 — Check resource saturation trends

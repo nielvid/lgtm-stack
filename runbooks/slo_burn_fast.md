@@ -46,12 +46,11 @@ Open: **Grafana → SLO & Error Budget dashboard** — confirm burn rate panel s
 ### Step 2 — Correlate to recent deployments
 
 ```bash
-# Check last 5 GitHub Actions deployments in DORA dashboard
-# OR check git log
+# Check last 10 commits pushed to main
 git log --oneline -10
 
-# Check if errors started at a deploy time
-docker compose logs --since="1h" app | grep -E "ERROR|FATAL|panic"
+# Check service error logs since 1 hour ago
+sudo journalctl -u demo-app --since "1 hour ago" | grep -E "ERROR|FATAL|panic"
 ```
 
 ### Step 3 — Trace the errors in Tempo
@@ -68,7 +67,7 @@ docker compose logs --since="1h" app | grep -E "ERROR|FATAL|panic"
 | Cause | Resolution |
 |---|---|
 | Bad deployment | `git revert HEAD && git push origin main` (triggers redeploy) |
-| Database failure | Check DB connectivity: `docker compose logs db`; restart if needed |
+| Database failure | Check if any dependency is failing: `sudo journalctl -u demo-app --since "1h ago"` |
 | OOM / disk full | See `high_memory.md` / `disk_almost_full.md` runbooks |
 | Traffic spike | Enable rate limiting in Nginx; scale app replicas |
 | External API down | Add circuit breaker; return cached/degraded response |
