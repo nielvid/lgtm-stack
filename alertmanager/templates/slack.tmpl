@@ -1,0 +1,25 @@
+{{ define "slack.lgtm.title" -}}
+{{ if eq .Status "firing" }}🔥{{ else }}✅{{ end }} [{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{ .Alerts.Firing | len }}{{ end }}] {{ .GroupLabels.alertname }}
+{{- end }}
+
+{{ define "slack.lgtm.text" -}}
+{{ range .Alerts }}
+*Alert:* {{ .Annotations.summary }}
+*Severity:* {{ .Labels.severity | title }}
+*Instance:* {{ .Labels.instance | default "N/A" }}
+*Status:* {{ if eq .Status "firing" }}:red_circle: Firing{{ else }}:large_green_circle: Resolved{{ end }}
+*Started:* {{ .StartsAt.Format "2006-01-02 15:04:05 UTC" }}
+{{ if .Annotations.description }}*Details:* {{ .Annotations.description }}{{ end }}
+{{ if .Annotations.runbook }}*Runbook:* <{{ .Annotations.runbook }}|View Runbook>{{ end }}
+*Grafana:* <http://YOUR_VM_IP:3000|Open Grafana>
+---
+{{ end }}
+{{- end }}
+
+{{ define "slack.lgtm.color" -}}
+{{ if eq .Status "firing" -}}
+  {{ if eq (index .Alerts 0).Labels.severity "critical" }}danger
+  {{ else if eq (index .Alerts 0).Labels.severity "warning" }}warning
+  {{ else }}#439FE0{{ end -}}
+{{ else }}good{{ end -}}
+{{- end }}

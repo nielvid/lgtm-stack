@@ -1,0 +1,20 @@
+# Secrets — never commit
+.env
+
+# Node modules
+app/node_modules/
+
+# Terraform state
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.backup
+terraform/.terraform.lock.hcl
+terraform/override.tf
+
+# macOS
+.DS_Store
+
+# Editor
+.vscode/
+.idea/
+*.swp

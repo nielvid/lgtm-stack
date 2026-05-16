@@ -1,0 +1,131 @@
+groups:
+  - name: infrastructure
+    interval: 30s
+    rules:
+
+      # ---- CPU ---------------------------------------------------
+      - alert: HighCPUWarning
+        expr: |
+          100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+          runbook: https://github.com/your-org/lgtm-stack/blob/main/runbooks/high_cpu.md
+        annotations:
+          summary: "High CPU usage on {{ $labels.instance }}"
+          description: "CPU usage is {{ printf \"%.1f\" $value }}% on {{ $labels.instance }} (threshold: 80%)."
+
+      - alert: HighCPUCritical
+        expr: |
+          100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 95
+        for: 2m
+        labels:
+          severity: critical
+          runbook: https://github.com/your-org/lgtm-stack/blob/main/runbooks/high_cpu.md
+        annotations:
+          summary: "Critical CPU usage on {{ $labels.instance }}"
+          description: "CPU usage is {{ printf \"%.1f\" $value }}% on {{ $labels.instance }} (threshold: 95%). Immediate action required."
+
+      # ---- Memory ------------------------------------------------
+      - alert: HighMemoryWarning
+        expr: |
+          (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          runbook: https://github.com/your-org/lgtm-stack/blob/main/runbooks/high_memory.md
+        annotations:
+          summary: "High memory usage on {{ $labels.instance }}"
+          description: "Memory usage is {{ printf \"%.1f\" $value }}% on {{ $labels.instance }} (threshold: 80%)."
+
+      - alert: HighMemoryCritical
+        expr: |
+          (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 95
+        for: 2m
+        labels:
+          severity: critical
+          runbook: https://github.com/your-org/lgtm-stack/blob/main/runbooks/high_memory.md
+        annotations:
+          summary: "Critical memory usage on {{ $labels.instance }}"
+          description: "Memory usage is {{ printf \"%.1f\" $value }}% on {{ $labels.instance }} (threshold: 95%)."
+
+      # ---- Disk --------------------------------------------------
+      - alert: DiskAlmostFullWarning
+        expr: |
+          (1 - (node_filesystem_avail_bytes{fstype!~"tmpfs|fuse.lxcfs|overlay"} /
+                node_filesystem_size_bytes{fstype!~"tmpfs|fuse.lxcfs|overlay"})) * 100 > 80
+        for: 10m
+        labels:
+          severity: warning
+          runbook: https://github.com/your-org/lgtm-stack/blob/main/runbooks/disk_almost_full.md
+        annotations:
+          summary: "Disk almost full on {{ $labels.instance }} ({{ $labels.mountpoint }})"
+          description: "Disk usage is {{ printf \"%.1f\" $value }}% on {{ $labels.mountpoint }}."
+
+      - alert: DiskAlmostFullCritical
+        expr: |
+          (1 - (node_filesystem_avail_bytes{fstype!~"tmpfs|fuse.lxcfs|overlay"} /
+                node_filesystem_size_bytes{fstype!~"tmpfs|fuse.lxcfs|overlay"})) * 100 > 95
+        for: 5m
+        labels:
+          severity: critical
+          runbook: https://github.com/your-org/lgtm-stack/blob/main/runbooks/disk_almost_full.md
+        annotations:
+          summary: "Disk critically full on {{ $labels.instance }} ({{ $labels.mountpoint }})"
+          description: "Disk usage is {{ printf \"%.1f\" $value }}% on {{ $labels.mountpoint }}. Data loss imminent."
+
+      # ---- Instance Down -----------------------------------------
+      - alert: InstanceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+          runbook: https://github.com/your-org/lgtm-stack/blob/main/runbooks/instance_down.md
+        annotations:
+          summary: "Instance {{ $labels.instance }} is down"
+          description: "Job {{ $labels.job }} on {{ $labels.instance }} has been unreachable for more than 1 minute."
+
+      # ---- SSL Expiry --------------------------------------------
+      - alert: SSLCertExpiryWarning
+        expr: |
+          probe_ssl_earliest_cert_expiry - time() < 86400 * 30
+        for: 1h
+        labels:
+          severity: warning
+          runbook: https://github.com/your-org/lgtm-stack/blob/main/runbooks/ssl_expiry.md
+        annotations:
+          summary: "SSL certificate expiring soon for {{ $labels.instance }}"
+          description: "SSL cert on {{ $labels.instance }} expires in {{ $value | humanizeDuration }}."
+
+      - alert: SSLCertExpiryCritical
+        expr: |
+          probe_ssl_earliest_cert_expiry - time() < 86400 * 7
+        for: 1h
+        labels:
+          severity: critical
+          runbook: https://github.com/your-org/lgtm-stack/blob/main/runbooks/ssl_expiry.md
+        annotations:
+          summary: "SSL certificate critically close to expiry for {{ $labels.instance }}"
+          description: "SSL cert on {{ $labels.instance }} expires in {{ $value | humanizeDuration }}. Renew immediately."
+
+      # ---- Network I/O (Saturation) ------------------------------
+      - alert: HighNetworkReceiveSaturation
+        expr: |
+          rate(node_network_receive_bytes_total{device!~"lo|docker.*|veth.*"}[5m]) > 100 * 1024 * 1024
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High network receive on {{ $labels.instance }}"
+          description: "Network receive on {{ $labels.device }} is {{ $value | humanize }}B/s."
+
+      # ---- HTTP Probe Failure ------------------------------------
+      - alert: HTTPProbeFailure
+        expr: probe_success{job="blackbox_http"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          runbook: https://github.com/your-org/lgtm-stack/blob/main/runbooks/instance_down.md
+        annotations:
+          summary: "HTTP probe failing for {{ $labels.instance }}"
+          description: "Blackbox HTTP probe to {{ $labels.instance }} is failing."

@@ -1,0 +1,198 @@
+{
+  "uid": "dora-metrics",
+  "title": "DORA Metrics",
+  "tags": ["dora", "cicd", "devops"],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "5m",
+  "time": { "from": "now-30d", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Deployment Frequency (deployments/day, last 7d)",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 6, "x": 0, "y": 0 },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "orientation": "auto",
+        "colorMode": "background",
+        "graphMode": "area",
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 1 },
+              { "color": "green", "value": 3 }
+            ]
+          },
+          "links": []
+        }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "dora:deployment_frequency:per_day",
+          "legendFormat": "Deployments/day",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Lead Time for Changes (avg, seconds)",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 6, "x": 6, "y": 0 },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "graphMode": "area"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 86400 },
+              { "color": "red", "value": 604800 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "dora:lead_time_seconds:avg",
+          "legendFormat": "Lead Time",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Change Failure Rate (%)",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 6, "x": 12, "y": 0 },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "graphMode": "area"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.05 },
+              { "color": "orange", "value": 0.10 },
+              { "color": "red", "value": 0.15 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "dora:change_failure_rate:ratio",
+          "legendFormat": "CFR",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "MTTR (Mean Time to Restore)",
+      "type": "stat",
+      "gridPos": { "h": 5, "w": 6, "x": 18, "y": 0 },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "graphMode": "area"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 3600 },
+              { "color": "orange", "value": 86400 },
+              { "color": "red", "value": 604800 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "dora:mttr_seconds:avg",
+          "legendFormat": "MTTR",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Deployment Frequency Trend (30 days)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 5 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": { "lineWidth": 2, "fillOpacity": 15 },
+          "color": { "mode": "palette-classic" }
+        }
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "increase(cicd_deployments_total{status='success'}[1d])",
+          "legendFormat": "Successful Deployments",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "increase(cicd_deployments_total{status='failure'}[1d])",
+          "legendFormat": "Failed Deployments",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "DORA Benchmark Reference",
+      "type": "table",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 5 },
+      "options": { "footer": { "show": false } },
+      "fieldConfig": { "defaults": { "custom": { "align": "left" } } },
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {}
+        }
+      ],
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "vector(1)",
+          "legendFormat": "",
+          "refId": "A",
+          "hide": true
+        }
+      ],
+      "description": "DORA 2023 Benchmarks:\n\nElite: DF > multiple/day, LTC < 1h, CFR < 5%, MTTR < 1h\nHigh: DF daily-weekly, LTC 1d-1w, CFR 5-10%, MTTR < 1d\nMedium: DF weekly-monthly, LTC 1w-1mo, CFR 10-15%, MTTR 1d-1w\nLow: DF < monthly, LTC > 1mo, CFR > 15%, MTTR > 1w"
+    }
+  ]
+}

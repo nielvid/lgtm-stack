@@ -1,0 +1,113 @@
+groups:
+  - name: slo_burn_rate
+    interval: 30s
+    rules:
+
+      # ---- SLI Recording Rules -----------------------------------
+      # Availability SLI: ratio of successful requests
+      - record: job:http_request_success:ratio_rate5m
+        expr: |
+          sum(rate(http_requests_total{job="demo-app",status!~"5.."}[5m]))
+          /
+          sum(rate(http_requests_total{job="demo-app"}[5m]))
+
+      - record: job:http_request_success:ratio_rate30m
+        expr: |
+          sum(rate(http_requests_total{job="demo-app",status!~"5.."}[30m]))
+          /
+          sum(rate(http_requests_total{job="demo-app"}[30m]))
+
+      - record: job:http_request_success:ratio_rate1h
+        expr: |
+          sum(rate(http_requests_total{job="demo-app",status!~"5.."}[1h]))
+          /
+          sum(rate(http_requests_total{job="demo-app"}[1h]))
+
+      - record: job:http_request_success:ratio_rate6h
+        expr: |
+          sum(rate(http_requests_total{job="demo-app",status!~"5.."}[6h]))
+          /
+          sum(rate(http_requests_total{job="demo-app"}[6h]))
+
+      # ---- Error Budget Recording Rules --------------------------
+      # SLO target: 99.5% availability over 30 days
+      - record: slo:availability_target
+        expr: "0.995"
+
+      - record: slo:error_budget_remaining:ratio
+        expr: |
+          (job:http_request_success:ratio_rate1h - bool slo:availability_target)
+          / (1 - slo:availability_target)
+
+      # ---- Burn Rate Alerts (Multi-Window) -----------------------
+
+      # Fast burn: 14x budget consumed in 1h window AND 5m window
+      # At 14x burn rate, the 30-day budget is consumed in ~2 days
+      - alert: SLOBurnRateFast
+        expr: |
+          (
+            (1 - job:http_request_success:ratio_rate1h) / (1 - 0.995) > 14
+          ) and (
+            (1 - job:http_request_success:ratio_rate5m) / (1 - 0.995) > 14
+          )
+        for: 2m
+        labels:
+          severity: critical
+          window: "1h+5m"
+          runbook: https://github.com/your-org/lgtm-stack/blob/main/runbooks/slo_burn_fast.md
+        annotations:
+          summary: "CRITICAL: SLO burn rate is 14x over 1h and 5m windows"
+          description: |
+            Availability SLO (99.5%) is burning its error budget at 14x rate.
+            At this rate the entire 30-day budget will be exhausted in ~2 days.
+            Immediate action required.
+
+      # Slow burn: 6x budget consumed in 6h window AND 30m window
+      # At 6x burn rate, the 30-day budget is consumed in ~5 days
+      - alert: SLOBurnRateSlow
+        expr: |
+          (
+            (1 - job:http_request_success:ratio_rate6h) / (1 - 0.995) > 6
+          ) and (
+            (1 - job:http_request_success:ratio_rate30m) / (1 - 0.995) > 6
+          )
+        for: 15m
+        labels:
+          severity: warning
+          window: "6h+30m"
+          runbook: https://github.com/your-org/lgtm-stack/blob/main/runbooks/slo_burn_slow.md
+        annotations:
+          summary: "WARNING: SLO burn rate is 6x over 6h and 30m windows"
+          description: |
+            Availability SLO (99.5%) is burning its error budget at 6x rate.
+            At this rate the entire 30-day budget will be exhausted in ~5 days.
+            Investigate within the next few hours.
+
+      # ---- Latency SLO -------------------------------------------
+      # SLO: 99% of requests < 200ms p99 latency
+      - alert: HighLatencySLOBreach
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(http_request_duration_seconds_bucket{job="demo-app"}[5m])) by (le)
+          ) > 0.2
+        for: 5m
+        labels:
+          severity: warning
+          runbook: https://github.com/your-org/lgtm-stack/blob/main/runbooks/slo_burn_fast.md
+        annotations:
+          summary: "P99 latency SLO breach (>200ms)"
+          description: "P99 request latency is {{ printf \"%.0f\" (mul $value 1000) }}ms (SLO: 200ms)."
+
+      # ---- Error Rate SLO ----------------------------------------
+      - alert: HighErrorRateSLOBreach
+        expr: |
+          sum(rate(http_requests_total{job="demo-app",status=~"5.."}[5m]))
+          /
+          sum(rate(http_requests_total{job="demo-app"}[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          runbook: https://github.com/your-org/lgtm-stack/blob/main/runbooks/slo_burn_fast.md
+        annotations:
+          summary: "Error rate SLO breach (>5%)"
+          description: "HTTP 5xx error rate is {{ printf \"%.1f\" (mul $value 100) }}% (SLO: 5%)."

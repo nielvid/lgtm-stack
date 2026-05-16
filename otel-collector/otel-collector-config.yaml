@@ -1,0 +1,83 @@
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+  pprof:
+    endpoint: 0.0.0.0:1777
+  zpages:
+    endpoint: 0.0.0.0:55679
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+  # Scrape its own metrics for Prometheus
+  prometheus:
+    config:
+      scrape_configs:
+        - job_name: otel-collector
+          scrape_interval: 30s
+          static_configs:
+            - targets: ['0.0.0.0:8888']
+
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_percentage: 75
+    spike_limit_percentage: 15
+  batch:
+    timeout: 5s
+    send_batch_size: 1000
+  resource:
+    attributes:
+      - action: insert
+        key: cluster
+        value: lgtm-stack
+      - action: insert
+        key: environment
+        value: production
+
+exporters:
+  # Traces → Tempo
+  otlp/tempo:
+    endpoint: tempo:4317
+    tls:
+      insecure: true
+
+  # Logs → Loki
+  loki:
+    endpoint: http://loki:3100/loki/api/v1/push
+    default_labels_enabled:
+      exporter: false
+      job: true
+    tls:
+      insecure: true
+
+  # Self-metrics exposed for Prometheus scrape
+  prometheus:
+    endpoint: 0.0.0.0:8889
+    namespace: otelcol
+
+  # Debug (stdout) — disable in production by removing this block
+  debug:
+    verbosity: basic
+
+service:
+  extensions: [health_check, pprof, zpages]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, resource, batch]
+      exporters: [otlp/tempo]
+
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, resource, batch]
+      exporters: [loki]
+
+    metrics:
+      receivers: [otlp, prometheus]
+      processors: [memory_limiter, resource, batch]
+      exporters: [prometheus]

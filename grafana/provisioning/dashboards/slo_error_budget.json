@@ -1,0 +1,204 @@
+{
+  "uid": "slo-error-budget",
+  "title": "SLO & Error Budget",
+  "tags": ["slo", "error-budget", "reliability"],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "1m",
+  "time": { "from": "now-30d", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Availability SLI (current)",
+      "type": "gauge",
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 0 },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "orientation": "auto",
+        "showThresholdLabels": true,
+        "showThresholdMarkers": true,
+        "minVizHeight": 75,
+        "minVizWidth": 75
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0.99,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 0.994 },
+              { "color": "green", "value": 0.995 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "job:http_request_success:ratio_rate1h",
+          "legendFormat": "Availability",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "SLO Target",
+      "type": "stat",
+      "gridPos": { "h": 3, "w": 3, "x": 6, "y": 0 },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "none", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "unit": "percentunit", "decimals": 1, "color": { "fixedColor": "blue", "mode": "fixed" } } },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "slo:availability_target",
+          "legendFormat": "SLO Target",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Error Budget Remaining (%)",
+      "type": "gauge",
+      "gridPos": { "h": 6, "w": 6, "x": 9, "y": 0 },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "showThresholdMarkers": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 0.25 },
+              { "color": "green", "value": 0.5 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "clamp_min(slo:error_budget_remaining:ratio, 0)",
+          "legendFormat": "Error Budget",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Fast Burn Rate (1h window, threshold: 14x)",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 6, "x": 15, "y": 0 },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "area" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 6 },
+              { "color": "red", "value": 14 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "(1 - job:http_request_success:ratio_rate1h) / (1 - 0.995)",
+          "legendFormat": "Burn Rate (1h)",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Availability SLI History (30 days)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 14, "x": 0, "y": 6 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0.98,
+          "max": 1,
+          "custom": { "lineWidth": 2, "fillOpacity": 15 },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 0.995 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "thresholdsStyle": { "mode": "line" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "job:http_request_success:ratio_rate1h",
+          "legendFormat": "Availability SLI (1h)",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "job:http_request_success:ratio_rate6h",
+          "legendFormat": "Availability SLI (6h)",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Burn Rate History",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 10, "x": 14, "y": 6 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": { "lineWidth": 2, "fillOpacity": 10 },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 6 },
+              { "color": "red", "value": 14 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "thresholdsStyle": { "mode": "dashed" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "(1 - job:http_request_success:ratio_rate1h) / (1 - 0.995)",
+          "legendFormat": "Burn Rate (1h)",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "(1 - job:http_request_success:ratio_rate6h) / (1 - 0.995)",
+          "legendFormat": "Burn Rate (6h)",
+          "refId": "B"
+        }
+      ]
+    }
+  ]
+}

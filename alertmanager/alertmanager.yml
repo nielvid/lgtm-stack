@@ -1,0 +1,75 @@
+global:
+  resolve_timeout: 5m
+  slack_api_url: "${SLACK_WEBHOOK_URL}"
+
+# ---- Templates -----------------------------------------------
+templates:
+  - /etc/alertmanager/templates/*.tmpl
+
+# ---- Routing -------------------------------------------------
+route:
+  # Default receiver
+  receiver: slack-devops-alerts
+  group_by: ['alertname', 'cluster', 'severity']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+
+  routes:
+    # Critical alerts — immediate, repeat every hour
+    - matchers:
+        - severity = "critical"
+      receiver: slack-devops-alerts-critical
+      group_wait: 10s
+      repeat_interval: 1h
+      continue: false
+
+    # CI/CD / DORA alerts — notify platform team
+    - matchers:
+        - team = "platform"
+      receiver: slack-devops-alerts
+      group_by: ['alertname']
+      repeat_interval: 6h
+
+    # Info-level — daily digest only
+    - matchers:
+        - severity = "info"
+      receiver: slack-devops-alerts
+      repeat_interval: 24h
+
+# ---- Inhibition Rules ----------------------------------------
+inhibit_rules:
+  # Suppress warning alerts when the same instance has a critical alert
+  - source_matchers:
+      - severity = "critical"
+    target_matchers:
+      - severity = "warning"
+    equal: ['alertname', 'instance']
+
+  # Suppress all alerts when InstanceDown is firing (host unreachable)
+  - source_matchers:
+      - alertname = "InstanceDown"
+    target_matchers:
+      - severity =~ "warning|critical"
+    equal: ['instance']
+
+# ---- Receivers -----------------------------------------------
+receivers:
+  - name: slack-devops-alerts
+    slack_configs:
+      - channel: '#DevOps-Alerts'
+        title: '{{ template "slack.lgtm.title" . }}'
+        text: '{{ template "slack.lgtm.text" . }}'
+        send_resolved: true
+        icon_emoji: ':bell:'
+        username: 'AlertManager'
+
+  - name: slack-devops-alerts-critical
+    slack_configs:
+      - channel: '#DevOps-Alerts'
+        title: '{{ template "slack.lgtm.title" . }}'
+        text: '{{ template "slack.lgtm.text" . }}'
+        send_resolved: true
+        icon_emoji: ':rotating_light:'
+        username: 'AlertManager [CRITICAL]'
+        color: '{{ if eq .Status "firing" }}danger{{ else }}good{{ end }}'

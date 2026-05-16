@@ -1,0 +1,147 @@
+name: DORA Metrics Push
+
+on:
+  push:
+    branches: [main]
+  workflow_run:
+    workflows: ["*"]
+    types: [completed]
+
+jobs:
+  push-dora-metrics:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event.workflow_run != null
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # ---- Deployment Frequency ----------------------------------
+      - name: Calculate and push Deployment Frequency
+        env:
+          PUSHGATEWAY_URL: ${{ secrets.PUSHGATEWAY_URL }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          REPO_LABEL=$(echo "$GITHUB_REPOSITORY" | tr '/' '_')
+          DEPLOY_STATUS="success"
+
+          # Push deployment counter
+          cat <<EOF | curl --data-binary @- "${PUSHGATEWAY_URL}/metrics/job/cicd/instance/${REPO_LABEL}"
+          # HELP cicd_deployments_total Total number of deployments
+          # TYPE cicd_deployments_total counter
+          cicd_deployments_total{status="${DEPLOY_STATUS}",repo="${REPO_LABEL}",branch="main"} 1
+          EOF
+
+          echo "✅ Pushed deployment_frequency metric (status=${DEPLOY_STATUS})"
+
+      # ---- Lead Time for Changes ---------------------------------
+      - name: Calculate Lead Time for Changes
+        env:
+          PUSHGATEWAY_URL: ${{ secrets.PUSHGATEWAY_URL }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          REPO_LABEL=$(echo "$GITHUB_REPOSITORY" | tr '/' '_')
+
+          # Get the timestamp of the earliest commit in this push
+          FIRST_COMMIT_TIME=$(git log --format="%ct" | tail -1)
+          NOW=$(date +%s)
+          LEAD_TIME=$(( NOW - FIRST_COMMIT_TIME ))
+
+          echo "Lead time: ${LEAD_TIME}s ($(( LEAD_TIME / 60 )) minutes)"
+
+          cat <<EOF | curl --data-binary @- "${PUSHGATEWAY_URL}/metrics/job/cicd/instance/${REPO_LABEL}"
+          # HELP cicd_lead_time_seconds Time from first commit to deployment in seconds
+          # TYPE cicd_lead_time_seconds gauge
+          cicd_lead_time_seconds{repo="${REPO_LABEL}",branch="main"} ${LEAD_TIME}
+          EOF
+
+          echo "✅ Pushed lead_time_seconds metric (${LEAD_TIME}s)"
+
+      # ---- Change Failure Rate -----------------------------------
+      # Detect if this push caused a rollback (look for revert commits)
+      - name: Detect and push Change Failure Rate
+        env:
+          PUSHGATEWAY_URL: ${{ secrets.PUSHGATEWAY_URL }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          REPO_LABEL=$(echo "$GITHUB_REPOSITORY" | tr '/' '_')
+
+          # Check for revert commits in this push
+          REVERT_COUNT=$(git log --oneline ${{ github.event.before }}..${{ github.sha }} | grep -ic "revert" || true)
+
+          if [ "$REVERT_COUNT" -gt "0" ]; then
+            FAILURE_STATUS="failure"
+            echo "⚠️ Revert commit detected — marking as deployment failure"
+          else
+            FAILURE_STATUS="success"
+          fi
+
+          cat <<EOF | curl --data-binary @- "${PUSHGATEWAY_URL}/metrics/job/cicd/instance/${REPO_LABEL}"
+          # HELP cicd_deployments_total Total number of deployments
+          # TYPE cicd_deployments_total counter
+          cicd_deployments_total{status="${FAILURE_STATUS}",repo="${REPO_LABEL}",branch="main"} 1
+          EOF
+
+          echo "✅ Pushed deployment status: ${FAILURE_STATUS}"
+
+  # ---- MTTR (triggered on workflow completion) -------------------
+  push-mttr-on-failure:
+    runs-on: ubuntu-latest
+    if: >
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'failure'
+
+    steps:
+      - name: Record workflow failure start time
+        env:
+          PUSHGATEWAY_URL: ${{ secrets.PUSHGATEWAY_URL }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          REPO_LABEL=$(echo "$GITHUB_REPOSITORY" | tr '/' '_')
+          FAILURE_TIME=$(date +%s)
+
+          cat <<EOF | curl --data-binary @- "${PUSHGATEWAY_URL}/metrics/job/cicd_mttr/instance/${REPO_LABEL}_${WORKFLOW_RUN_ID}"
+          # HELP cicd_failure_start_time_seconds Unix timestamp when the failure was detected
+          # TYPE cicd_failure_start_time_seconds gauge
+          cicd_failure_start_time_seconds{repo="${REPO_LABEL}",run_id="${WORKFLOW_RUN_ID}"} ${FAILURE_TIME}
+          EOF
+
+          echo "✅ Recorded failure start time for run ${WORKFLOW_RUN_ID}"
+
+  push-mttr-on-recovery:
+    runs-on: ubuntu-latest
+    if: >
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success'
+
+    steps:
+      - name: Calculate and push MTTR
+        env:
+          PUSHGATEWAY_URL: ${{ secrets.PUSHGATEWAY_URL }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          REPO_LABEL=$(echo "$GITHUB_REPOSITORY" | tr '/' '_')
+
+          # Query Pushgateway for last failure start time
+          FAILURE_TIME=$(curl -s "${PUSHGATEWAY_URL}/metrics" | \
+            grep "cicd_failure_start_time_seconds{repo=\"${REPO_LABEL}\"" | \
+            awk '{print $NF}' | tail -1)
+
+          if [ -n "$FAILURE_TIME" ] && [ "$FAILURE_TIME" -gt "0" ] 2>/dev/null; then
+            NOW=$(date +%s)
+            MTTR=$(( NOW - ${FAILURE_TIME%.*} ))
+            echo "MTTR: ${MTTR}s ($(( MTTR / 60 )) minutes)"
+
+            cat <<EOF | curl --data-binary @- "${PUSHGATEWAY_URL}/metrics/job/cicd/instance/${REPO_LABEL}"
+          # HELP cicd_mttr_seconds Mean time to restore in seconds
+          # TYPE cicd_mttr_seconds gauge
+          cicd_mttr_seconds{repo="${REPO_LABEL}"} ${MTTR}
+          EOF
+
+            echo "✅ Pushed MTTR: ${MTTR}s"
+          else
+            echo "ℹ️ No prior failure recorded — skipping MTTR push"
+          fi
