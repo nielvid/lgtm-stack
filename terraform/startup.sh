@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # =================================================================
-# LGTM Stack — GCP VM Bootstrap Script (systemd, no Docker)
-# Used as metadata_startup_script in Terraform.
+# LGTM Stack
+# Used as startup_script in Terraform.
 # Runs once on first boot as root.
 #
 # Installs all services as native Linux binaries managed by systemd.

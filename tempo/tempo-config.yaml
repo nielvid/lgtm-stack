@@ -15,6 +15,7 @@ distributor:
 
 ingester:
   max_block_duration: 5m
+  trace_idle_period: 10s
 
 compactor:
   compaction:

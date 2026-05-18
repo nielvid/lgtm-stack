@@ -72,7 +72,7 @@ resource "google_compute_instance" "lgtm_vm" {
 
   metadata = {
     ssh-keys               = "${var.ssh_user}:${file(var.ssh_pub_key_path)}"
-    startup-script         = file("${path.module}/startup.sh")
+    startup-script         = file("${path.module}/../startup.sh")
     enable-oslogin         = "FALSE"
     block-project-ssh-keys = "FALSE"
   }

@@ -21,6 +21,11 @@ receivers:
           scrape_interval: 30s
           static_configs:
             - targets: ['0.0.0.0:8888']
+  journald:
+    directory: /var/log/journal
+    units:
+      - nginx.service
+      - anvila-api.service
 
 processors:
   memory_limiter:
@@ -38,6 +43,12 @@ processors:
       - action: insert
         key: environment
         value: production
+      - action: upsert
+        key: service.name
+        value: anvila-api
+      - action: upsert
+        key: team
+        value: anvila
 
 exporters:
   # Traces → Tempo
@@ -73,7 +84,7 @@ service:
       exporters: [otlp/tempo]
 
     logs:
-      receivers: [otlp]
+      receivers: [journald,otlp]
       processors: [memory_limiter, resource, batch]
       exporters: [loki]
 

@@ -10,7 +10,7 @@ templates:
 route:
   # Default receiver
   receiver: slack-devops-alerts
-  group_by: ['alertname', 'cluster', 'severity']
+  group_by: ['alertname', 'service', 'cluster', 'severity']
   group_wait: 30s
   group_interval: 5m
   repeat_interval: 4h
