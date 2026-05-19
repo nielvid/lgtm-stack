@@ -26,3 +26,9 @@ variable "allowed_cidr_blocks" {
   type        = list(string)
   default     = ["0.0.0.0/0"]  # Open for demo — restrict to your IP in production
 }
+
+variable "backend_bucket" {
+  description = "S3 bucket for Terraform state"
+  type        = string
+  default     = "lgtm-stack-tf-state"
+}

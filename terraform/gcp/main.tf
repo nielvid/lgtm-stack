@@ -6,6 +6,11 @@ terraform {
       version = "~> 6.0"
     }
   }
+
+  backend "gcs" {
+    bucket = var.backend_bucket
+    prefix = "lgtm-stack/state"
+  }
 }
 
 provider "google" {
