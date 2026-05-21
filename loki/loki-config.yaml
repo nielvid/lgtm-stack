@@ -39,6 +39,11 @@ limits_config:
 
 ruler:
   alertmanager_url: http://localhost:9093
+  rule_path: /var/lib/loki/rules-temp
+  storage:
+    type: local
+    local:
+      directory: /var/lib/loki/rules
 
 compactor:
   working_directory: /var/lib/loki/compactor

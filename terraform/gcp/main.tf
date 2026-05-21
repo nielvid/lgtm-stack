@@ -8,7 +8,7 @@ terraform {
   }
 
   backend "gcs" {
-    bucket = var.backend_bucket
+    bucket = "vemps-storage"
     prefix = "lgtm-stack/state"
   }
 }

@@ -201,10 +201,13 @@ mkdir -p /etc/grafana/provisioning/dashboards /etc/grafana/provisioning/datasour
 # 8. Clone / update repository
 # ---------------------------------------------------------------
 echo "--- [8/10] Cloning repository ---"
+BRANCH="feat/using-systemd-for-all-service"
 if [ ! -d "$DEPLOY_DIR/.git" ]; then
-  git clone "$REPO_URL" "$DEPLOY_DIR"
+  git clone -b "$BRANCH" "$REPO_URL" "$DEPLOY_DIR"
 else
-  git -C "$DEPLOY_DIR" pull origin main
+  git -C "$DEPLOY_DIR" fetch origin
+  git -C "$DEPLOY_DIR" checkout "$BRANCH"
+  git -C "$DEPLOY_DIR" pull origin "$BRANCH"
 fi
 
 # Set up environment file

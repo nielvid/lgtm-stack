@@ -1,15 +1,19 @@
 # LGTM Observability Stack
 
-> **Production-grade observability and reliability platform** using the full LGTM stack (Loki, Grafana, Tempo, Prometheus) with DORA metrics, SLOs, error budgets, multi-window burn rate alerting, and full Infrastructure as Code on GCP.
+> **Production-grade observability and reliability platform** using the full LGTM stack (Loki, Grafana, Tempo, Prometheus) with DORA metrics, SLOs, error budgets, multi-window burn rate alerting, and full Infrastructure as Code on GCP and AWS.
 >
 > **All services run as native Linux binaries managed by systemd — no Docker or container runtime is used.**
 
 ---
 
-## Deployment (One Command via Terraform)
+## Deployment (via Terraform)
+
+The stack can be deployed on either Google Cloud Platform (GCP) or Amazon Web Services (AWS).
+
+### Deploying to GCP
 
 ```bash
-cd terraform
+cd terraform/gcp
 
 # Authenticate with GCP
 gcloud auth application-default login
@@ -17,17 +21,28 @@ gcloud auth application-default login
 # Initialise
 terraform init
 
-# Preview what will be created
-terraform plan \
-  -var="project_id=your-gcp-project-id" \
-  -var="zone=us-central1-a" \
-  -var="ssh_pub_key_path=~/.ssh/id_rsa.pub"
-
 # Apply — provisions VM, installs all binaries, starts all services via systemd
 terraform apply \
   -var="project_id=your-gcp-project-id" \
   -var="zone=us-central1-a" \
   -var="ssh_pub_key_path=~/.ssh/id_rsa.pub"
+```
+
+### Deploying to AWS
+
+```bash
+cd terraform/aws
+
+# Configure AWS credentials (or export AWS_ACCESS_KEY_ID & AWS_SECRET_ACCESS_KEY)
+aws configure
+
+# Initialise
+terraform init
+
+# Apply — provisions EC2 instance, installs binaries, starts services
+terraform apply \
+  -var="aws_region=us-east-1" \
+  -var="key_name=your-aws-ssh-key-name"
 ```
 
 After `terraform apply` completes, the startup script runs automatically and:
@@ -160,7 +175,7 @@ All alerts route to `#DevOps-Alerts`. Set `SLACK_WEBHOOK_URL` in `/opt/lgtm-stac
 
 Test the alert pipeline:
 ```bash
-curl -X POST http://localhost:9093/api/v1/alerts \
+curl -X POST http://localhost:9093/api/v2/alerts \
   -H 'Content-Type: application/json' \
   -d '[{"labels":{"alertname":"TestAlert","severity":"warning"},"annotations":{"summary":"Pipeline test"}}]'
 ```
@@ -240,7 +255,10 @@ lgtm-stack/
 ├── app/                        # OTel-instrumented Node.js demo service
 ├── runbooks/                   # 9 alert runbooks (Markdown)
 ├── docs/                       # SLI/SLO, error budget policy, PIR
-├── terraform/                  # GCP Terraform + startup bootstrap script
+├── terraform/                  # Infrastructure as Code
+│   ├── gcp/                    # GCP Terraform configuration
+│   ├── aws/                    # AWS Terraform configuration
+│   └── startup.sh              # Shared VM bootstrap script
 └── README.md
 ```
 

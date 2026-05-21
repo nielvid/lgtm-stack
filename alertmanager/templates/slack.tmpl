@@ -6,7 +6,7 @@
 {{ range .Alerts }}
 *Alert:* {{ .Annotations.summary }}
 *Severity:* {{ .Labels.severity | title }}
-*Instance:* {{ .Labels.instance | default "N/A" }}
+*Instance:* {{ if .Labels.instance }}{{ .Labels.instance }}{{ else }}N/A{{ end }}
 *Status:* {{ if eq .Status "firing" }}:red_circle: Firing{{ else }}:large_green_circle: Resolved{{ end }}
 *Started:* {{ .StartsAt.Format "2006-01-02 15:04:05 UTC" }}
 {{ if .Annotations.description }}*Details:* {{ .Annotations.description }}{{ end }}

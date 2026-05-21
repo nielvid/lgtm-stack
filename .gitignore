@@ -8,8 +8,12 @@ app/node_modules/
 terraform/.terraform/
 terraform/*.tfstate
 terraform/*.tfstate.backup
-terraform/.terraform.lock.hcl
 terraform/override.tf
+
+terraform/**/.terraform/
+terraform/**/.tfstate
+terraform/**/.tfstate.backup
+terraform/**/override.tf
 
 # macOS
 .DS_Store

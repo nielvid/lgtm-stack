@@ -8,14 +8,14 @@ terraform {
   }
 
   backend "s3" {
-    bucket = var.backend_bucket
+    bucket = "bucket-name"
     key    = "lgtm-stack/terraform.tfstate"
-    region = var.aws_region
+    region = "us-east-1"
   }
 }
 
 provider "aws" {
-  region = var.aws_region
+  region = var.aws_region 
 }
 
 data "aws_ami" "ubuntu" {

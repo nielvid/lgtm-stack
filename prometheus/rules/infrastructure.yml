@@ -10,7 +10,7 @@ groups:
         for: 5m
         labels:
           severity: warning
-          runbook: https://github.com/your-org/lgtm-stack/blob/main/runbooks/high_cpu.md
+          runbook: https://github.com/nielvid/lgtm-stack/blob/main/runbooks/high_cpu.md
         annotations:
           summary: "High CPU usage on {{ $labels.instance }}"
           description: "CPU usage is {{ printf \"%.1f\" $value }}% on {{ $labels.instance }} (threshold: 80%)."
@@ -21,7 +21,7 @@ groups:
         for: 2m
         labels:
           severity: critical
-          runbook: https://github.com/your-org/lgtm-stack/blob/main/runbooks/high_cpu.md
+          runbook: https://github.com/nielvid/lgtm-stack/blob/main/runbooks/high_cpu.md
         annotations:
           summary: "Critical CPU usage on {{ $labels.instance }}"
           description: "CPU usage is {{ printf \"%.1f\" $value }}% on {{ $labels.instance }} (threshold: 95%). Immediate action required."
@@ -33,7 +33,7 @@ groups:
         for: 5m
         labels:
           severity: warning
-          runbook: https://github.com/your-org/lgtm-stack/blob/main/runbooks/high_memory.md
+          runbook: https://github.com/nielvid/lgtm-stack/blob/main/runbooks/high_memory.md
         annotations:
           summary: "High memory usage on {{ $labels.instance }}"
           description: "Memory usage is {{ printf \"%.1f\" $value }}% on {{ $labels.instance }} (threshold: 80%)."
@@ -44,7 +44,7 @@ groups:
         for: 2m
         labels:
           severity: critical
-          runbook: https://github.com/your-org/lgtm-stack/blob/main/runbooks/high_memory.md
+          runbook: https://github.com/nielvid/lgtm-stack/blob/main/runbooks/high_memory.md
         annotations:
           summary: "Critical memory usage on {{ $labels.instance }}"
           description: "Memory usage is {{ printf \"%.1f\" $value }}% on {{ $labels.instance }} (threshold: 95%)."
@@ -57,7 +57,7 @@ groups:
         for: 10m
         labels:
           severity: warning
-          runbook: https://github.com/your-org/lgtm-stack/blob/main/runbooks/disk_almost_full.md
+          runbook: https://github.com/nielvid/lgtm-stack/blob/main/runbooks/disk_almost_full.md
         annotations:
           summary: "Disk almost full on {{ $labels.instance }} ({{ $labels.mountpoint }})"
           description: "Disk usage is {{ printf \"%.1f\" $value }}% on {{ $labels.mountpoint }}."
@@ -69,7 +69,7 @@ groups:
         for: 5m
         labels:
           severity: critical
-          runbook: https://github.com/your-org/lgtm-stack/blob/main/runbooks/disk_almost_full.md
+          runbook: https://github.com/nielvid/lgtm-stack/blob/main/runbooks/disk_almost_full.md
         annotations:
           summary: "Disk critically full on {{ $labels.instance }} ({{ $labels.mountpoint }})"
           description: "Disk usage is {{ printf \"%.1f\" $value }}% on {{ $labels.mountpoint }}. Data loss imminent."
@@ -80,7 +80,7 @@ groups:
         for: 1m
         labels:
           severity: critical
-          runbook: https://github.com/your-org/lgtm-stack/blob/main/runbooks/instance_down.md
+          runbook: https://github.com/nielvid/lgtm-stack/blob/main/runbooks/instance_down.md
         annotations:
           summary: "Instance {{ $labels.instance }} is down"
           description: "Job {{ $labels.job }} on {{ $labels.instance }} has been unreachable for more than 1 minute."
@@ -92,7 +92,7 @@ groups:
         for: 1h
         labels:
           severity: warning
-          runbook: https://github.com/your-org/lgtm-stack/blob/main/runbooks/ssl_expiry.md
+          runbook: https://github.com/nielvid/lgtm-stack/blob/main/runbooks/ssl_expiry.md
         annotations:
           summary: "SSL certificate expiring soon for {{ $labels.instance }}"
           description: "SSL cert on {{ $labels.instance }} expires in {{ $value | humanizeDuration }}."
@@ -103,7 +103,7 @@ groups:
         for: 1h
         labels:
           severity: critical
-          runbook: https://github.com/your-org/lgtm-stack/blob/main/runbooks/ssl_expiry.md
+          runbook: https://github.com/nielvid/lgtm-stack/blob/main/runbooks/ssl_expiry.md
         annotations:
           summary: "SSL certificate critically close to expiry for {{ $labels.instance }}"
           description: "SSL cert on {{ $labels.instance }} expires in {{ $value | humanizeDuration }}. Renew immediately."
@@ -125,7 +125,7 @@ groups:
         for: 2m
         labels:
           severity: critical
-          runbook: https://github.com/your-org/lgtm-stack/blob/main/runbooks/instance_down.md
+          runbook: https://github.com/nielvid/lgtm-stack/blob/main/runbooks/instance_down.md
         annotations:
           summary: "HTTP probe failing for {{ $labels.instance }}"
           description: "Blackbox HTTP probe to {{ $labels.instance }} is failing."

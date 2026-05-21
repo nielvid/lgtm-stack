@@ -42,7 +42,7 @@ variable "ssh_user" {
 variable "ssh_pub_key_path" {
   description = "Path to your SSH public key file"
   type        = string
-  default     = "~/.ssh/id_rsa.pub"
+  default     = "~/.ssh/google_compute_engine.pub"
 }
 
 variable "allowed_cidr_blocks" {
