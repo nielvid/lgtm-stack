@@ -15,6 +15,7 @@ distributor:
 
 ingester:
   max_block_duration: 5m
+  trace_idle_period: 10s
 
 compactor:
   compaction:
@@ -26,18 +27,15 @@ metrics_generator:
       source: tempo
       cluster: lgtm-stack
   storage:
-    path: /var/tempo/generator/wal
-  processors:
-    - service-graphs
-    - span-metrics
+    path: /var/lib/tempo/generator/wal
 
 storage:
   trace:
     backend: local
     local:
-      path: /var/tempo/blocks
+      path: /var/lib/tempo/blocks
     wal:
-      path: /var/tempo/wal
+      path: /var/lib/tempo/wal
 
 overrides:
   defaults:

@@ -6,6 +6,11 @@ terraform {
       version = "~> 6.0"
     }
   }
+
+  backend "gcs" {
+    bucket = "vemps-storage"
+    prefix = "lgtm-stack/state"
+  }
 }
 
 provider "google" {
@@ -41,7 +46,7 @@ resource "google_compute_firewall" "lgtm_allow_observability" {
 }
 
 # ---------------------------------------------------------------
-# Compute Engine VM — runs the LGTM Docker Compose stack
+# Compute Engine VM — runs the full LGTM stack as native systemd services
 # ---------------------------------------------------------------
 resource "google_compute_instance" "lgtm_vm" {
   name         = var.vm_name
@@ -72,7 +77,7 @@ resource "google_compute_instance" "lgtm_vm" {
 
   metadata = {
     ssh-keys               = "${var.ssh_user}:${file(var.ssh_pub_key_path)}"
-    startup-script         = file("${path.module}/startup.sh")
+    startup-script         = file("${path.module}/../startup.sh")
     enable-oslogin         = "FALSE"
     block-project-ssh-keys = "FALSE"
   }

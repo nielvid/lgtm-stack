@@ -13,7 +13,7 @@ const { PeriodicExportingMetricReader } = require('@opentelemetry/sdk-metrics');
 const { BatchLogRecordProcessor } = require('@opentelemetry/sdk-logs');
 const { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } = require('@opentelemetry/semantic-conventions');
 
-const OTEL_ENDPOINT = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || 'http://otel-collector:4318';
+const OTEL_ENDPOINT = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || 'http://localhost:4318';
 
 const sdk = new NodeSDK({
   resource: new Resource({

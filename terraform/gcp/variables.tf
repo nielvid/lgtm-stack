@@ -42,7 +42,7 @@ variable "ssh_user" {
 variable "ssh_pub_key_path" {
   description = "Path to your SSH public key file"
   type        = string
-  default     = "~/.ssh/id_rsa.pub"
+  default     = "~/.ssh/google_compute_engine.pub"
 }
 
 variable "allowed_cidr_blocks" {
@@ -50,3 +50,10 @@ variable "allowed_cidr_blocks" {
   type        = list(string)
   default     = ["0.0.0.0/0"]  # Open for demo — restrict to your IP in production
 }
+
+variable "backend_bucket" {
+  description = "GCS bucket for Terraform state"
+  type        = string
+  default     = "your-gcp-terraform-state-bucket"
+}
+

@@ -7,11 +7,11 @@ server:
 
 common:
   instance_addr: 127.0.0.1
-  path_prefix: /loki
+  path_prefix: /var/lib/loki
   storage:
     filesystem:
-      chunks_directory: /loki/chunks
-      rules_directory: /loki/rules
+      chunks_directory: /var/lib/loki/chunks
+      rules_directory: /var/lib/loki/rules
   replication_factor: 1
   ring:
     kvstore:
@@ -38,10 +38,15 @@ limits_config:
   max_entries_limit_per_query: 10000
 
 ruler:
-  alertmanager_url: http://alertmanager:9093
+  alertmanager_url: http://localhost:9093
+  rule_path: /var/lib/loki/rules-temp
+  storage:
+    type: local
+    local:
+      directory: /var/lib/loki/rules
 
 compactor:
-  working_directory: /loki/compactor
+  working_directory: /var/lib/loki/compactor
   retention_enabled: true
   delete_request_store: filesystem
 

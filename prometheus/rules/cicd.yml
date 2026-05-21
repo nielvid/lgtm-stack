@@ -38,11 +38,11 @@ groups:
         labels:
           severity: warning
           team: platform
-          runbook: https://github.com/your-org/lgtm-stack/blob/main/runbooks/high_cfr.md
+          runbook: https://github.com/nielvid/lgtm-stack/blob/main/runbooks/high_cfr.md
         annotations:
           summary: "Change Failure Rate exceeds 15% SLO"
           description: |
-            CFR is {{ printf \"%.1f\" (mul $value 100) }}% over the last 7 days.
+            CFR is {{ printf "%.1f" $value }} over the last 7 days.
             DORA elite performers target < 5%. Medium performers < 15%.
             Investigate recent deployments for instability patterns.
 
@@ -52,7 +52,7 @@ groups:
         labels:
           severity: warning
           team: platform
-          runbook: https://github.com/your-org/lgtm-stack/blob/main/runbooks/high_mttr.md
+          runbook: https://github.com/nielvid/lgtm-stack/blob/main/runbooks/high_mttr.md
         annotations:
           summary: "Mean Time to Restore exceeds 60-minute SLO"
           description: |
@@ -68,5 +68,5 @@ groups:
         annotations:
           summary: "Deployment frequency below 1 per day"
           description: |
-            Deployment frequency is {{ printf \"%.2f\" $value }} deployments/day over the last 7 days.
+            Deployment frequency is {{ printf "%.2f" $value }} deployments/day over the last 7 days.
             Elite performers deploy multiple times per day.

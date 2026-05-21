@@ -1,0 +1,22 @@
+[Unit]
+Description=LGTM Demo App — OTel-instrumented Node.js service
+After=network-online.target otelcol-contrib.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=demo-app
+Group=demo-app
+WorkingDirectory=/opt/lgtm-stack/app
+ExecStart=/usr/bin/node /opt/lgtm-stack/app/index.js
+Environment=NODE_ENV=production
+Environment=APP_PORT=8080
+Environment=OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=demo-app
+
+[Install]
+WantedBy=multi-user.target

@@ -35,7 +35,7 @@ top -bn1 | head -20
 # More detailed view
 ps aux --sort=-%cpu | head -15
 
-# Check CPU breakdown (user/sys/iowait/steal)
+# CPU breakdown by mode (user/sys/iowait/steal)
 mpstat 1 5
 ```
 
@@ -45,16 +45,21 @@ Open [Grafana → Node Exporter Dashboard](http://YOUR_VM_IP:3000/d/node-exporte
 
 - Look for CPU mode breakdown: is it `user` (application), `sys` (kernel), or `iowait` (disk)?
 - Correlate with request rate — is this a traffic spike?
-- Check Loki logs for errors: `{service_name="demo-app"} |= "error"`.
+- Check Loki logs: `{service_name="demo-app"} |= "error"`.
 
-### Step 3 — Check for runaway containers
+### Step 3 — Identify which systemd service is responsible
 
 ```bash
-# CPU usage by container
-docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}"
+# CPU usage by process with service name
+systemd-cgtop -n 1
 
-# Check if a specific container is the culprit
-docker top <container_name>
+# Check resource usage of a specific service
+systemctl status prometheus
+systemctl status demo-app
+
+# View recent logs of the suspect service
+sudo journalctl -u demo-app --since "10 min ago"
+sudo journalctl -u prometheus --since "10 min ago"
 ```
 
 ---
@@ -63,9 +68,9 @@ docker top <container_name>
 
 | Cause | Resolution |
 |---|---|
-| Runaway process | `kill -9 <PID>` or `docker restart <container>` |
-| Traffic spike | Scale app replicas or enable rate limiting |
-| Batch job | Reschedule batch to off-peak hours |
+| Runaway service | `sudo systemctl restart <service-name>` |
+| Traffic spike | Investigate and add rate limiting to the demo app |
+| Batch job | Reschedule to off-peak hours via cron |
 | High iowait | Check disk I/O — see `disk_almost_full.md` runbook |
 | High steal | GCP: check for CPU throttling; upgrade machine type if sustained |
 
@@ -73,6 +78,6 @@ docker top <container_name>
 
 ## Rollback / Escalation
 
-- If caused by a recent deployment: `git revert` and redeploy.
+- If caused by a recent deployment: `git revert` the bad commit, push to `main`, then on VM: `sudo git -C /opt/lgtm-stack pull && sudo systemctl restart demo-app`.
 - If CPU remains > 95% after initial steps: escalate to Engineering Lead.
-- For sustained (> 30 min critical): consider restarting all containers: `docker compose restart`.
+- For sustained (> 30 min critical): restart the affected services one by one: `sudo systemctl restart prometheus alertmanager loki tempo`.

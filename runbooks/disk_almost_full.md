@@ -9,17 +9,17 @@
 
 ## Alert Description
 
-A filesystem on the host has exceeded the 80% (warning) or 95% (critical) usage threshold. At 100%, writes will fail — Prometheus will stop writing metrics, Loki will drop logs, Tempo will fail to store traces, and containers may crash.
+A filesystem on the host has exceeded the 80% (warning) or 95% (critical) usage threshold. At 100%, writes will fail — Prometheus will stop writing metrics, Loki will drop logs, Tempo will fail to store traces, and services may crash.
 
 ---
 
 ## Likely Causes
 
-1. Prometheus TSDB blocks accumulating beyond retention period.
+1. Prometheus TSDB blocks accumulating beyond the configured retention period.
 2. Loki chunk storage growing due to high-volume log ingestion.
 3. Tempo trace blocks not being compacted or cleaned up.
-4. Docker container layers and images accumulating on `/var/lib/docker`.
-5. Application log files on the host filling disk.
+4. System journal logs (`/var/log/journal`) growing without rotation.
+5. Application log files accumulating on the host.
 
 ---
 
@@ -34,34 +34,43 @@ df -h
 # Top space consumers from root
 du -h / --max-depth=3 2>/dev/null | sort -rh | head -20
 
-# Docker-specific usage
-docker system df
+# Check the journal size
+journalctl --disk-usage
 ```
 
 ### Step 2 — Check observability data volumes
 
 ```bash
 # Prometheus TSDB
-docker exec prometheus du -sh /prometheus/
+du -sh /var/lib/prometheus/
 
-# Loki chunks
-docker exec loki du -sh /loki/
+# Loki chunks and WAL
+du -sh /var/lib/loki/
 
-# Tempo blocks
-docker exec tempo du -sh /var/tempo/
+# Tempo blocks and WAL
+du -sh /var/lib/tempo/
+
+# Grafana database
+du -sh /var/lib/grafana/
+
+# Pushgateway persistence
+du -sh /var/lib/pushgateway/
 ```
 
-### Step 3 — Find and remove stale Docker resources
+### Step 3 — Find and clean system log accumulation
 
 ```bash
-# Show dangling images, stopped containers, unused volumes
-docker system df -v
+# Check journal size per service
+journalctl --disk-usage
 
-# Remove stopped containers, dangling images, unused networks
-docker system prune -f
+# Vacuum journal to keep only last 7 days
+sudo journalctl --vacuum-time=7d
 
-# Remove unused volumes (caution: verify first)
-docker volume ls --filter dangling=true
+# Vacuum journal to a size limit
+sudo journalctl --vacuum-size=500M
+
+# Check for large files in /var/log
+find /var/log -type f -size +50M | sort -k5 -rh
 ```
 
 ---
@@ -70,17 +79,17 @@ docker volume ls --filter dangling=true
 
 | Cause | Resolution |
 |---|---|
-| Prometheus old blocks | Reduce `retention.time` in `prometheus.yml`; restart Prometheus |
-| Loki old chunks | Reduce `retention_period` in `loki-config.yaml`; restart Loki |
-| Tempo old traces | Reduce `block_retention` in `tempo-config.yaml`; restart Tempo |
-| Docker images/layers | `docker system prune -af --volumes` (data loss risk — verify volumes first) |
-| Host log files | `journalctl --vacuum-time=7d` to trim system journal |
-| GCP disk full | Resize disk via GCP Console: `gcloud compute disks resize <disk> --size=<GB>` |
+| Prometheus old blocks | Reduce `--storage.tsdb.retention.time` in `prometheus.service`; `sudo systemctl restart prometheus` |
+| Loki old chunks | Reduce `retention_period` in `/etc/loki/loki-config.yaml`; `sudo systemctl restart loki` |
+| Tempo old traces | Reduce `block_retention` in `/etc/tempo/tempo-config.yaml`; `sudo systemctl restart tempo` |
+| Journal logs | `sudo journalctl --vacuum-time=7d` |
+| System apt cache | `sudo apt-get clean && sudo apt-get autoclean` |
+| GCP disk full | Resize disk via GCP Console: `gcloud compute disks resize <disk> --size=<GB> --zone=<zone>` |
 
 ---
 
 ## Rollback / Escalation
 
-- If Prometheus write fails (disk 100%): immediately free space before anything else — data loss is certain if writes stay blocked.
+- If Prometheus write fails (disk 100%): free space immediately before anything else — metrics will be lost if writes stay blocked.
 - Escalate to Engineering Lead if disk cannot be freed within 30 minutes.
-- For persistent growth: increase GCP persistent disk size or add object storage for Loki/Tempo.
+- For persistent growth: increase the GCP persistent disk size or reduce retention periods in the config files.

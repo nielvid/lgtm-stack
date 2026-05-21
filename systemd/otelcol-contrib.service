@@ -1,0 +1,18 @@
+[Unit]
+Description=OpenTelemetry Collector (contrib)
+Documentation=https://opentelemetry.io/docs/collector
+After=network-online.target loki.service tempo.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=otelcol
+Group=otelcol
+ExecStart=/usr/local/bin/otelcol-contrib \
+  --config=/etc/otelcol-contrib/config.yaml
+Restart=always
+RestartSec=5
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

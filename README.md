@@ -1,51 +1,153 @@
 # LGTM Observability Stack
 
-> **Production-grade observability and reliability platform** using the full LGTM stack (Loki, Grafana, Tempo, Prometheus) with DORA metrics, SLOs, error budgets, multi-window burn rate alerting, and full Infrastructure as Code.
+> **Production-grade observability and reliability platform** using the full LGTM stack (Loki, Grafana, Tempo, Prometheus) with DORA metrics, SLOs, error budgets, multi-window burn rate alerting, and full Infrastructure as Code on GCP and AWS.
+>
+> **All services run as native Linux binaries managed by systemd — no Docker or container runtime is used.**
 
 ---
 
-## Quick Start
+## Deployment (via Terraform)
+
+The stack can be deployed on either Google Cloud Platform (GCP) or Amazon Web Services (AWS).
+
+### Deploying to GCP
 
 ```bash
-# 1. Clone the repo
-git clone https://github.com/your-org/lgtm-stack.git
-cd lgtm-stack
+cd terraform/gcp
 
-# 2. Create your environment file
-cp .env.example .env
-# Edit .env — set SLACK_WEBHOOK_URL, GF_SECURITY_ADMIN_PASSWORD, etc.
+# Authenticate with GCP
+gcloud auth application-default login
 
-# 3. Bring up the full stack (one command)
-docker compose up -d
+# Initialise
+terraform init
 
-# 4. Verify all 10 services are healthy
-docker compose ps
+# Apply — provisions VM, installs all binaries, starts all services via systemd
+terraform apply \
+  -var="project_id=your-gcp-project-id" \
+  -var="zone=us-central1-a" \
+  -var="ssh_pub_key_path=~/.ssh/id_rsa.pub"
 ```
 
-**Grafana** is available at `http://localhost:3000` (default: `admin` / `changeme` — change in `.env`).
+### Deploying to AWS
+
+```bash
+cd terraform/aws
+
+# Configure AWS credentials (or export AWS_ACCESS_KEY_ID & AWS_SECRET_ACCESS_KEY)
+aws configure
+
+# Initialise
+terraform init
+
+# Apply — provisions EC2 instance, installs binaries, starts services
+terraform apply \
+  -var="aws_region=us-east-1" \
+  -var="key_name=your-aws-ssh-key-name"
+```
+
+After `terraform apply` completes, the startup script runs automatically and:
+1. Downloads all service binaries (Prometheus, Loki, Tempo, Grafana, Node Exporter, Blackbox Exporter, Alertmanager, OTel Collector, Pushgateway)
+2. Installs them as systemd services under dedicated system users
+3. Copies all configs from the repo to their system paths
+4. Enables and starts all 10 services
+
+**Terraform outputs:**
+```
+vm_external_ip  = "35.x.x.x"
+grafana_url     = "http://35.x.x.x:3000"
+pushgateway_url = "http://35.x.x.x:9091"
+ssh_command     = "ssh ubuntu@35.x.x.x"
+```
+
+---
+
+## First-Time Setup After Deploy
+
+```bash
+# SSH into the VM
+ssh ubuntu@<VM-IP>
+
+# Edit the environment file with real secrets
+sudo nano /opt/lgtm-stack/.env
+# Set: SLACK_WEBHOOK_URL, GF_SECURITY_ADMIN_PASSWORD
+
+# Restart affected services after env changes
+sudo systemctl restart alertmanager grafana-server
+```
+
+---
+
+## Verify All Services Are Running
+
+```bash
+# Check status of all services at once
+sudo systemctl status prometheus alertmanager loki tempo \
+  otelcol-contrib node-exporter blackbox-exporter pushgateway \
+  grafana-server demo-app
+
+# Individual health checks
+curl http://localhost:9090/-/healthy       # Prometheus
+curl http://localhost:3100/ready           # Loki
+curl http://localhost:3200/ready           # Tempo
+curl http://localhost:3000/api/health      # Grafana
+curl http://localhost:9091/-/healthy       # Pushgateway
+curl http://localhost:8080/health          # Demo app
+curl "http://localhost:9115/probe?target=https://example.com&module=http_2xx"
+
+# View logs for any service
+sudo journalctl -u prometheus -f
+sudo journalctl -u loki -f
+sudo journalctl -u demo-app -f
+```
 
 ---
 
 ## Stack Components & Port Map
 
-| Service | Port | Description |
-|---|---|---|
-| **Grafana** | `3000` | Unified observability frontend — dashboards |
-| **Prometheus** | `9090` | Metrics collection & storage |
-| **Alertmanager** | `9093` | Alert routing & Slack notifications |
-| **Loki** | `3100` | Log aggregation |
-| **Tempo** | `3200` | Distributed tracing backend |
-| **OTel Collector** | `4317` (gRPC), `4318` (HTTP) | Telemetry ingestion gateway |
-| **Node Exporter** | `9100` | Host system metrics |
-| **Blackbox Exporter** | `9115` | HTTP / SSL probes |
-| **Pushgateway** | `9091` | DORA metrics from GitHub Actions |
-| **Demo App** | `8080` | OTel-instrumented sample service |
+| Service | Port | Systemd Unit | Description |
+|---|---|---|---|
+| **Grafana** | `3000` | `grafana-server` | Unified observability frontend |
+| **Prometheus** | `9090` | `prometheus` | Metrics collection & storage |
+| **Alertmanager** | `9093` | `alertmanager` | Alert routing & Slack notifications |
+| **Loki** | `3100` | `loki` | Log aggregation |
+| **Tempo** | `3200` | `tempo` | Distributed tracing backend |
+| **OTel Collector** | `4317` (gRPC), `4318` (HTTP) | `otelcol-contrib` | Telemetry ingestion gateway |
+| **Node Exporter** | `9100` | `node-exporter` | Host system metrics |
+| **Blackbox Exporter** | `9115` | `blackbox-exporter` | HTTP / SSL probes |
+| **Pushgateway** | `9091` | `pushgateway` | DORA metrics from GitHub Actions |
+| **Demo App** | `8080` | `demo-app` | OTel-instrumented sample service |
+
+---
+
+## Service Management
+
+```bash
+# Start / stop / restart any service
+sudo systemctl start prometheus
+sudo systemctl stop loki
+sudo systemctl restart alertmanager
+
+# Reload Prometheus config without restart (hot-reload)
+sudo systemctl reload prometheus
+# or: curl -X POST http://localhost:9090/-/reload
+
+# Check service logs
+sudo journalctl -u tempo --since "1 hour ago"
+sudo journalctl -u otelcol-contrib -n 100
+
+# Restart all LGTM services
+for svc in prometheus alertmanager loki tempo otelcol-contrib \
+           node-exporter blackbox-exporter pushgateway grafana-server demo-app; do
+  sudo systemctl restart "$svc"
+done
+```
 
 ---
 
 ## Grafana Dashboards
 
 All dashboards are **provisioned as code** — never via the Grafana UI.
+Config files live in `/etc/grafana/provisioning/` on the VM (copied from the repo).
 
 | Dashboard | UID | Purpose |
 |---|---|---|
@@ -59,7 +161,7 @@ All dashboards are **provisioned as code** — never via the Grafana UI.
 
 ## Alerting
 
-All alert rules are version-controlled YAML files in `prometheus/rules/`:
+All alert rules live in `/etc/prometheus/rules/` on the VM (versioned in `prometheus/rules/`):
 
 | Rule File | Alerts |
 |---|---|
@@ -69,19 +171,22 @@ All alert rules are version-controlled YAML files in `prometheus/rules/`:
 
 ### Slack Integration
 
-All alerts route to `#DevOps-Alerts` via Alertmanager with structured payloads:
-- Alert name, severity, instance, description
-- Runbook link (clickable)
-- Grafana dashboard link
-- Status emoji (🔥 firing / ✅ resolved)
+All alerts route to `#DevOps-Alerts`. Set `SLACK_WEBHOOK_URL` in `/opt/lgtm-stack/.env`.
 
-Set your `SLACK_WEBHOOK_URL` in `.env` before starting.
+Test the alert pipeline:
+```bash
+curl -X POST http://localhost:9093/api/v2/alerts \
+  -H 'Content-Type: application/json' \
+  -d '[{"labels":{"alertname":"TestAlert","severity":"warning"},"annotations":{"summary":"Pipeline test"}}]'
+```
 
 ---
 
 ## DORA Metrics via GitHub Actions
 
-The `.github/workflows/dora_metrics.yml` workflow automatically pushes all four DORA metrics to the Pushgateway on every push to `main`:
+`.github/workflows/dora_metrics.yml` pushes all four DORA metrics to the Pushgateway on every push to `main`.
+
+**Required GitHub Actions Secret**: `PUSHGATEWAY_URL` = `http://<VM-IP>:9091` (shown in `terraform apply` output).
 
 | Metric | How measured |
 |---|---|
@@ -90,48 +195,11 @@ The `.github/workflows/dora_metrics.yml` workflow automatically pushes all four 
 | **Change Failure Rate** | Revert commits detected → marked as `failure` |
 | **MTTR** | Time from failure workflow to next success |
 
-**Required GitHub Actions Secrets**:
-- `PUSHGATEWAY_URL` — set to `http://<VM-IP>:9091` (output by Terraform)
-
----
-
-## GCP Terraform Deployment
-
-```bash
-cd terraform
-
-# Authenticate with GCP
-gcloud auth application-default login
-
-# Initialise
-terraform init
-
-# Review the plan
-terraform plan \
-  -var="project_id=your-gcp-project-id" \
-  -var="zone=us-central1-a" \
-  -var="ssh_pub_key_path=~/.ssh/id_rsa.pub"
-
-# Apply — creates the VM, firewall rules, and bootstraps the stack
-terraform apply \
-  -var="project_id=your-gcp-project-id" \
-  -var="zone=us-central1-a" \
-  -var="ssh_pub_key_path=~/.ssh/id_rsa.pub"
-
-# Outputs after apply:
-# vm_external_ip     = "35.x.x.x"
-# grafana_url        = "http://35.x.x.x:3000"
-# pushgateway_url    = "http://35.x.x.x:9091"
-# ssh_command        = "ssh ubuntu@35.x.x.x"
-```
-
-Update `terraform/startup.sh` with your actual repo URL before applying.
-
 ---
 
 ## SLI / SLO Definitions
 
-See [`docs/sli_slo_definitions.md`](docs/sli_slo_definitions.md) for full PromQL definitions of the Four Golden Signals.
+See [`docs/sli_slo_definitions.md`](docs/sli_slo_definitions.md) for full PromQL definitions.
 
 | SLO | Target | Window |
 |---|---|---|
@@ -144,14 +212,12 @@ See [`docs/sli_slo_definitions.md`](docs/sli_slo_definitions.md) for full PromQL
 
 ## Error Budget Policy
 
-See [`docs/error_budget_policy.md`](docs/error_budget_policy.md) for the full policy.
+See [`docs/error_budget_policy.md`](docs/error_budget_policy.md).
 
 | Consumption | Action |
 |---|---|
 | 50% | Investigate burn rate; pause non-critical deploys if accelerating |
 | 100% | Halt all deployments; mandatory blameless PIR within 24h |
-
-**Review cadence**: Weekly status, quarterly SLO target review.
 
 ---
 
@@ -171,58 +237,49 @@ See [`docs/error_budget_policy.md`](docs/error_budget_policy.md) for the full po
 
 ---
 
-## Toil Reduction
-
-Two sources of toil identified and automated:
-
-1. **SSL Certificate Renewal** — `SSLCertExpiryWarning` fires at 30 days, `SSLCertExpiryCritical` at 7 days, giving time for Certbot auto-renewal to catch failures before expiry.
-2. **Manual Deployment Health Checks** — GitHub Actions DORA workflow auto-publishes deployment status; `HighChangeFailureRate` alert catches pipeline instability automatically.
-
----
-
 ## Repository Structure
 
 ```
 lgtm-stack/
-├── docker-compose.yml          # Full 10-service stack
 ├── .env.example                # Environment variables template
 ├── .github/workflows/
-│   └── dora_metrics.yml        # DORA metrics → Pushgateway
-├── prometheus/                 # Scrape configs + 3 alert rule files
+│   └── dora_metrics.yml        # DORA metrics → Pushgateway on push to main
+├── prometheus/                 # Scrape config + 3 alert rule files
 ├── alertmanager/               # Routing config + Slack templates
 ├── loki/                       # Log aggregation config
 ├── tempo/                      # Tracing backend config
 ├── otel-collector/             # Telemetry collector config
 ├── blackbox/                   # HTTP / SSL probe modules
-├── grafana/provisioning/       # 5 dashboards + datasources (IaC)
-├── app/                        # OTel-instrumented demo service
+├── grafana/provisioning/       # 5 dashboards + datasources (all IaC)
+├── systemd/                    # Systemd unit files for all 9 services
+├── app/                        # OTel-instrumented Node.js demo service
 ├── runbooks/                   # 9 alert runbooks (Markdown)
 ├── docs/                       # SLI/SLO, error budget policy, PIR
-├── terraform/                  # GCP Terraform (VM + firewall)
+├── terraform/                  # Infrastructure as Code
+│   ├── gcp/                    # GCP Terraform configuration
+│   ├── aws/                    # AWS Terraform configuration
+│   └── startup.sh              # Shared VM bootstrap script
 └── README.md
 ```
 
 ---
 
-## Verification
+## Updating Configuration
 
-After `docker compose up -d`, run:
+After changing any config file in the repo, push to `main` then on the VM:
 
 ```bash
-# All services healthy
-docker compose ps
+cd /opt/lgtm-stack && sudo git pull origin main
 
-# Individual health checks
-curl http://localhost:9090/-/healthy       # Prometheus
-curl http://localhost:3100/ready           # Loki
-curl http://localhost:3200/ready           # Tempo
-curl http://localhost:3000/api/health      # Grafana
-curl http://localhost:9091/-/healthy       # Pushgateway
-curl http://localhost:8080/health          # Demo app
-curl "http://localhost:9115/probe?target=https://example.com&module=http_2xx"  # Blackbox
+# Re-apply configs and reload
+sudo cp prometheus/prometheus.yml /etc/prometheus/prometheus.yml
+sudo cp prometheus/rules/*.yml /etc/prometheus/rules/
+sudo systemctl reload prometheus
 
-# Test alert pipeline
-curl -X POST http://localhost:9093/api/v1/alerts \
-  -H 'Content-Type: application/json' \
-  -d '[{"labels":{"alertname":"TestAlert","severity":"warning"},"annotations":{"summary":"Test"}}]'
+sudo cp loki/loki-config.yaml /etc/loki/loki-config.yaml
+sudo systemctl restart loki
+
+# Grafana dashboards (auto-reload every 30s, or force)
+sudo cp grafana/provisioning/dashboards/*.json /etc/grafana/provisioning/dashboards/
+sudo systemctl restart grafana-server
 ```

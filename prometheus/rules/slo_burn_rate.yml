@@ -36,7 +36,7 @@ groups:
 
       - record: slo:error_budget_remaining:ratio
         expr: |
-          (job:http_request_success:ratio_rate1h - bool slo:availability_target)
+          (job:http_request_success:ratio_rate1h - slo:availability_target)
           / (1 - slo:availability_target)
 
       # ---- Burn Rate Alerts (Multi-Window) -----------------------
@@ -54,7 +54,7 @@ groups:
         labels:
           severity: critical
           window: "1h+5m"
-          runbook: https://github.com/your-org/lgtm-stack/blob/main/runbooks/slo_burn_fast.md
+          runbook: https://github.com/nielvid/lgtm-stack/blob/main/runbooks/slo_burn_fast.md
         annotations:
           summary: "CRITICAL: SLO burn rate is 14x over 1h and 5m windows"
           description: |
@@ -75,7 +75,7 @@ groups:
         labels:
           severity: warning
           window: "6h+30m"
-          runbook: https://github.com/your-org/lgtm-stack/blob/main/runbooks/slo_burn_slow.md
+          runbook: https://github.com/nielvid/lgtm-stack/blob/main/runbooks/slo_burn_slow.md
         annotations:
           summary: "WARNING: SLO burn rate is 6x over 6h and 30m windows"
           description: |
@@ -93,10 +93,10 @@ groups:
         for: 5m
         labels:
           severity: warning
-          runbook: https://github.com/your-org/lgtm-stack/blob/main/runbooks/slo_burn_fast.md
+          runbook: https://github.com/nielvid/lgtm-stack/blob/main/runbooks/slo_burn_fast.md
         annotations:
           summary: "P99 latency SLO breach (>200ms)"
-          description: "P99 request latency is {{ printf \"%.0f\" (mul $value 1000) }}ms (SLO: 200ms)."
+          description: "P99 request latency is {{ printf \"%.3f\" $value }}s (SLO: 200ms)."
 
       # ---- Error Rate SLO ----------------------------------------
       - alert: HighErrorRateSLOBreach
@@ -107,7 +107,7 @@ groups:
         for: 5m
         labels:
           severity: warning
-          runbook: https://github.com/your-org/lgtm-stack/blob/main/runbooks/slo_burn_fast.md
+          runbook: https://github.com/nielvid/lgtm-stack/blob/main/runbooks/slo_burn_fast.md
         annotations:
           summary: "Error rate SLO breach (>5%)"
-          description: "HTTP 5xx error rate is {{ printf \"%.1f\" (mul $value 100) }}% (SLO: 5%)."
+          description: "HTTP 5xx error rate is {{ printf \"%.3f\" $value }} (SLO: 5%)."
